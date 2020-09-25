@@ -8,6 +8,7 @@ substrate-build-script-utils = { default-features = false, version = '2.0.0' }
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
 frame-benchmarking-cli = { default-features = false, optional = true, version = '2.0.0' }
 jsonrpc-core = { default-features = false, version = '15.0.0' }
+pallet-contracts = { default-features = false, version = '2.0.0' }
 pallet-transaction-payment-rpc = { default-features = false, version = '2.0.0' }
 sc-basic-authorship = { default-features = false, version = '0.8.0' }
 sc-cli = { default-features = false, features = ['wasmtime'], version = '0.8.0' }

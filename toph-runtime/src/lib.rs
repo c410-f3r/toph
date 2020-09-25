@@ -17,6 +17,7 @@ use frame_support::{
     IdentityFee, Weight,
   },
 };
+use pallet_contracts_rpc_runtime_api::ContractExecResult;
 use pallet_grandpa::{
   fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -90,14 +91,15 @@ construct_runtime!(
     NodeBlock = crate::opaque::Block,
     UncheckedExtrinsic = UncheckedExtrinsic
   {
-    System: frame_system::{Module, Call, Config, Storage, Event<T>},
-    RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
-    Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
     Aura: pallet_aura::{Module, Config<T>, Inherent},
-    Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
     Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-    TransactionPayment: pallet_transaction_payment::{Module, Storage},
+    Contracts: pallet_contracts::{Module, Call, Config, Storage, Event<T>},
+    Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
+    RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
     Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+    System: frame_system::{Module, Call, Config, Storage, Event<T>},
+    Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+    TransactionPayment: pallet_transaction_payment::{Module, Storage},
   }
 );
 
@@ -266,8 +268,40 @@ impl_runtime_apis! {
     }
   }
 
-  impl sp_api::Core<Block> for Runtime {
+  impl pallet_contracts_rpc_runtime_api::ContractsApi<Block, AccountId, Balance, BlockNumber>
+    for Runtime
+  {
+    fn call(
+      origin: AccountId,
+      dest: AccountId,
+      value: Balance,
+      gas_limit: u64,
+      input_data: Vec<u8>,
+    ) -> ContractExecResult {
+      let (exec_result, gas_consumed) = Contracts::bare_call(origin, dest.into(), value, gas_limit, input_data);
+      match exec_result {
+        Ok(v) => ContractExecResult::Success {
+          flags: v.flags.bits(),
+          data: v.data,
+          gas_consumed: gas_consumed,
+        },
+        Err(_) => ContractExecResult::Error,
+      }
+    }
 
+    fn get_storage(
+      address: AccountId,
+      key: [u8; 32],
+    ) -> pallet_contracts_primitives::GetStorageResult {
+      Contracts::get_storage(address, key)
+    }
+
+    fn rent_projection(
+      address: AccountId,
+    ) -> pallet_contracts_primitives::RentProjectionResult<BlockNumber> {
+      Contracts::rent_projection(address)
+    }
+  }
 
   impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
     fn query_info(
@@ -361,14 +395,24 @@ impl_runtime_apis! {
   }
 }
 
-  impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
-    fn query_info(
-      uxt: <Block as BlockT>::Extrinsic,
-      len: u32,
-    ) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
-      TransactionPayment::query_info(uxt, len)
-    }
-  }
+impl pallet_contracts::Trait for Runtime {
+  type Currency = Balances;
+  type DetermineContractAddress = pallet_contracts::SimpleAddressDeterminer<Runtime>;
+  type Event = Event;
+  type MaxDepth = pallet_contracts::DefaultMaxDepth;
+  type MaxValueSize = pallet_contracts::DefaultMaxValueSize;
+  type Randomness = RandomnessCollectiveFlip;
+  type RentByteFee = RentByteFee;
+  type RentDepositOffset = RentDepositOffset;
+  type RentPayment = ();
+  type SignedClaimHandicap = pallet_contracts::DefaultSignedClaimHandicap;
+  type StorageSizeOffset = pallet_contracts::DefaultStorageSizeOffset;
+  type SurchargeReward = SurchargeReward;
+  type Time = Timestamp;
+  type TombstoneDeposit = TombstoneDeposit;
+  type TrieIdGenerator = pallet_contracts::TrieIdFromParentCounter<Runtime>;
+  type WeightPrice = pallet_transaction_payment::Module<Self>;
+}
 
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
