@@ -73,6 +73,7 @@ std = [
 
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
+description = 'Toph runtime'
 edition = '2018'
 license = 'Apache-2.0'
 name = 'toph-runtime'

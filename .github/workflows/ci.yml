@@ -36,7 +36,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Tests
-        run: ./scripts/test.sh
+        run: ./scripts/tests.sh
 
   tools:
     name: Tools

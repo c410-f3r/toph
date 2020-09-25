@@ -40,7 +40,6 @@ runtime-benchmarks = ['frame-benchmarking', 'frame-benchmarking-cli', 'toph-runt
 
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
-build = 'build.rs'
 description = 'Toph node'
 edition = '2018'
 license = 'Apache-2.0'
