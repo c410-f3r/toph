@@ -1,0 +1,50 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PW }}
+
+      - name: Build and push to Docker Hub
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: c410f3r/toph-node:latest
+
+      - name: Publish
+        uses: appleboy/ssh-action@master
+        with:
+          host: 35.192.47.173
+          key: ${{ secrets.VM_PK }}
+          passphrase: ${{ secrets.VM_PW }}
+          script: |
+            sudo apt update
+            sudo apt install -y docker.io
+            sudo docker stop toph-node
+            sudo docker rm toph-node
+            mkdir -p ~/toph-node
+            sudo docker run -d --name toph-node -p 30333:30333 -p 9933:9933 -p 9944:9944 --restart on-failure -v $HOME/toph-node:/toph-node c410f3r/toph-node --rpc-cors all --rpc-external --ws-external
+          username: toph-node
+
+            
