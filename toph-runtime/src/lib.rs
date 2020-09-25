@@ -38,8 +38,9 @@ use sp_version::RuntimeVersion;
 
 pub const DAYS: BlockNumber = HOURS * 24;
 pub const HOURS: BlockNumber = MINUTES * 60;
-pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
+pub const MILLICENTS: Balance = 1_000_000_000;
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
+pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 pub const VERSION: RuntimeVersion = RuntimeVersion {
   spec_name: create_runtime_str!("toph-node"),
@@ -83,36 +84,6 @@ pub type SignedExtra = (
 );
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 
-parameter_types! {
-  pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-  pub const BlockHashCount: BlockNumber = 2400;
-  /// We allow for 2 seconds of compute with a 6 second average block time.
-  pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
-  /// Assume 10% of weight for average on_initialize calls.
-  pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
-  pub const Version: RuntimeVersion = VERSION;
-
-  pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get().saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
-}
-
-parameter_types! {
-  pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
-}
-
-parameter_types! {
-  pub const ExistentialDeposit: u128 = 500;
-  pub const MaxLocks: u32 = 50;
-}
-
-parameter_types! {
-  pub const TransactionByteFee: Balance = 1;
-}
-
-#[cfg(feature = "std")]
-pub fn native_version() -> NativeVersion {
-  NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
-}
-
 construct_runtime!(
   pub enum Runtime where
     Block = Block,
@@ -129,6 +100,24 @@ construct_runtime!(
     Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
   }
 );
+
+parameter_types! {
+  pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+  pub const BlockHashCount: BlockNumber = 2400;
+  pub const ExistentialDeposit: u128 = 500;
+  pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
+  pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
+  pub const MaxLocks: u32 = 50;
+  pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+  pub const RentByteFee: Balance = 4 * MILLICENTS;
+  pub const RentDepositOffset: Balance = 1000 * MILLICENTS;
+  pub const SurchargeReward: Balance = 150 * MILLICENTS;
+  pub const TombstoneDeposit: Balance = 16 * MILLICENTS;
+  pub const TransactionByteFee: Balance = 1;
+  pub const Version: RuntimeVersion = VERSION;
+
+  pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get().saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
+}
 
 impl pallet_aura::Trait for Runtime {
   type AuthorityId = AuraId;
@@ -213,8 +202,83 @@ impl pallet_transaction_payment::Trait for Runtime {
 }
 
 impl_runtime_apis! {
+  impl fg_primitives::GrandpaApi<Block> for Runtime {
+    fn generate_key_ownership_proof(
+      _set_id: fg_primitives::SetId,
+      _authority_id: GrandpaId,
+    ) -> Option<fg_primitives::OpaqueKeyOwnershipProof> {
+      None
+    }
+
+    fn grandpa_authorities() -> GrandpaAuthorityList {
+      Grandpa::grandpa_authorities()
+    }
+
+    fn submit_report_equivocation_unsigned_extrinsic(
+      _equivocation_proof: fg_primitives::EquivocationProof<
+        <Block as BlockT>::Hash,
+        NumberFor<Block>,
+      >,
+      _key_owner_proof: fg_primitives::OpaqueKeyOwnershipProof,
+    ) -> Option<()> {
+      None
+    }
+  }
+
+  #[cfg(feature = "runtime-benchmarks")]
+  impl frame_benchmarking::Benchmark<Block> for Runtime {
+    fn dispatch_benchmark(
+      config: frame_benchmarking::BenchmarkConfig
+    ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+      use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+
+      use frame_system_benchmarking::Module as SystemBench;
+      impl frame_system_benchmarking::Trait for Runtime {}
+
+      let whitelist: Vec<TrackedStorageKey> = sp_std::vec![
+        // Block Number
+        hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
+        // Total Issuance
+        hex_literal::hex!("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80").to_vec().into(),
+        // Execution Phase
+        hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a").to_vec().into(),
+        // Event Count
+        hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
+        // System Events
+        hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
+      ];
+
+      let mut batches = Vec::<BenchmarkBatch>::new();
+      let params = (&config, &whitelist);
+
+      add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
+      add_benchmark!(params, batches, pallet_balances, Balances);
+      add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+
+      if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
+      Ok(batches)
+    }
+  }
+
+  impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
+    fn account_nonce(account: AccountId) -> Index {
+      System::account_nonce(account)
+    }
+  }
+
   impl sp_api::Core<Block> for Runtime {
 
+
+  impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
+    fn query_info(
+      uxt: <Block as BlockT>::Extrinsic,
+      len: u32,
+    ) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
+      TransactionPayment::query_info(uxt, len)
+    }
+  }
+
+  impl sp_api::Core<Block> for Runtime {
     fn execute_block(block: Block) {
       Executive::execute_block(block)
     }
@@ -259,21 +323,6 @@ impl_runtime_apis! {
     }
   }
 
-  impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
-    fn validate_transaction(
-      source: TransactionSource,
-      tx: <Block as BlockT>::Extrinsic,
-    ) -> TransactionValidity {
-      Executive::validate_transaction(source, tx)
-    }
-  }
-
-  impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
-    fn offchain_worker(header: &<Block as BlockT>::Header) {
-      Executive::offchain_worker(header)
-    }
-  }
-
   impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
     fn authorities() -> Vec<AuraId> {
       Aura::authorities()
@@ -281,6 +330,12 @@ impl_runtime_apis! {
 
     fn slot_duration() -> u64 {
       Aura::slot_duration()
+    }
+  }
+
+  impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
+    fn offchain_worker(header: &<Block as BlockT>::Header) {
+      Executive::offchain_worker(header)
     }
   }
 
@@ -294,40 +349,17 @@ impl_runtime_apis! {
     fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
       crate::opaque::SessionKeys::generate(seed)
     }
-
   }
 
-  impl fg_primitives::GrandpaApi<Block> for Runtime {
-    fn generate_key_ownership_proof(
-      _set_id: fg_primitives::SetId,
-      _authority_id: GrandpaId,
-    ) -> Option<fg_primitives::OpaqueKeyOwnershipProof> {
-      // NOTE: this is the only implementation possible since we've
-      // defined our key owner proof type as a bottom type (i.e. a type
-      // with no values).
-      None
-    }
-
-    fn grandpa_authorities() -> GrandpaAuthorityList {
-      Grandpa::grandpa_authorities()
-    }
-
-    fn submit_report_equivocation_unsigned_extrinsic(
-      _equivocation_proof: fg_primitives::EquivocationProof<
-        <Block as BlockT>::Hash,
-        NumberFor<Block>,
-      >,
-      _key_owner_proof: fg_primitives::OpaqueKeyOwnershipProof,
-    ) -> Option<()> {
-      None
+  impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
+    fn validate_transaction(
+      source: TransactionSource,
+      tx: <Block as BlockT>::Extrinsic,
+    ) -> TransactionValidity {
+      Executive::validate_transaction(source, tx)
     }
   }
-
-  impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-    fn account_nonce(account: AccountId) -> Index {
-      System::account_nonce(account)
-    }
-  }
+}
 
   impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
     fn query_info(
@@ -338,38 +370,7 @@ impl_runtime_apis! {
     }
   }
 
-  #[cfg(feature = "runtime-benchmarks")]
-  impl frame_benchmarking::Benchmark<Block> for Runtime {
-    fn dispatch_benchmark(
-      config: frame_benchmarking::BenchmarkConfig
-    ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-      use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
-
-      use frame_system_benchmarking::Module as SystemBench;
-      impl frame_system_benchmarking::Trait for Runtime {}
-
-      let whitelist: Vec<TrackedStorageKey> = sp_std::vec![
-        // Block Number
-        hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
-        // Total Issuance
-        hex_literal::hex!("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80").to_vec().into(),
-        // Execution Phase
-        hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a").to_vec().into(),
-        // Event Count
-        hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
-        // System Events
-        hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
-      ];
-
-      let mut batches = Vec::<BenchmarkBatch>::new();
-      let params = (&config, &whitelist);
-
-      add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-      add_benchmark!(params, batches, pallet_balances, Balances);
-      add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-
-      if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
-      Ok(batches)
-    }
-  }
+#[cfg(feature = "std")]
+pub fn native_version() -> NativeVersion {
+  NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
