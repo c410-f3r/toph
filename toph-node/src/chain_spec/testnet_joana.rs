@@ -1,6 +1,6 @@
 use crate::chain_spec::{
-  get_account_id_from_seed, properties, public_key_from_ss58, ChainSpec, GenesisConfigBuilder,
-  account_id_from_ss58, 
+  account_id_from_ss58, get_account_id_from_seed, properties, public_key_from_ss58, ChainSpec,
+  GenesisConfigBuilder,
 };
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
