@@ -7,8 +7,10 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+mod currency;
 pub mod opaque;
 
+use currency::{deposit, MILLICENTS};
 use frame_support::{
   construct_runtime, parameter_types,
   traits::{KeyOwnerProofSystem, Randomness},
@@ -39,7 +41,6 @@ use sp_version::RuntimeVersion;
 
 pub const DAYS: BlockNumber = HOURS * 24;
 pub const HOURS: BlockNumber = MINUTES * 60;
-pub const MILLICENTS: Balance = 1_000_000_000;
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
@@ -95,6 +96,7 @@ construct_runtime!(
     Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
     Contracts: pallet_contracts::{Module, Call, Config, Storage, Event<T>},
     Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
+    Multisig: pallet_multisig::{Module, Call, Storage, Event<T>},
     RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
     Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
     System: frame_system::{Module, Call, Config, Storage, Event<T>},
@@ -104,21 +106,27 @@ construct_runtime!(
 );
 
 parameter_types! {
-  pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-  pub const BlockHashCount: BlockNumber = 2400;
-  pub const ExistentialDeposit: u128 = 500;
-  pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
-  pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
-  pub const MaxLocks: u32 = 50;
-  pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
-  pub const RentByteFee: Balance = 4 * MILLICENTS;
-  pub const RentDepositOffset: Balance = 1000 * MILLICENTS;
-  pub const SurchargeReward: Balance = 150 * MILLICENTS;
-  pub const TombstoneDeposit: Balance = 16 * MILLICENTS;
-  pub const TransactionByteFee: Balance = 1;
-  pub const Version: RuntimeVersion = VERSION;
+  pub const BalancesExistentialDeposit: u128 = 500;
+  pub const BalancesMaxLocks: u32 = 50;
+  pub const ContractsRentByteFee: Balance = 4 * MILLICENTS;
+  pub const ContractsRentDepositOffset: Balance = 1000 * MILLICENTS;
+  pub const ContractsSurchargeReward: Balance = 150 * MILLICENTS;
+  pub const ContractsTombstoneDeposit: Balance = 16 * MILLICENTS;
+  pub const MultisignDepositBase: Balance = deposit(1, 88);
+  pub const MultisignDepositFactor: Balance = deposit(0, 32);
+  pub const MultisignMaxSignatories: u16 = 100;
+  pub const SystemAvailableBlockRatio: Perbill = Perbill::from_percent(75);
+  pub const SystemBlockHashCount: BlockNumber = 2400;
+  pub const SystemMaximumBlockLength: u32 = 5 * 1024 * 1024;
+  pub const SystemMaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
+  pub const SystemVersion: RuntimeVersion = VERSION;
+  pub const TimestampMinimumPeriod: u64 = SLOT_DURATION / 2;
+  pub const TransactionPaymentTransactionByteFee: Balance = 1;
 
-  pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get().saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
+  pub MaximumExtrinsicWeight: Weight = {
+    let percent = Perbill::from_percent(10);
+    SystemAvailableBlockRatio::get().saturating_sub(percent) * SystemMaximumBlockWeight::get()
+  };
 }
 
 impl pallet_aura::Trait for Runtime {
@@ -126,13 +134,13 @@ impl pallet_aura::Trait for Runtime {
 }
 
 impl pallet_balances::Trait for Runtime {
-  type MaxLocks = MaxLocks;
+  type MaxLocks = BalancesMaxLocks;
   /// The type for recording an account's balance.
   type Balance = Balance;
   /// The ubiquitous event type.
   type Event = Event;
   type DustRemoval = ();
-  type ExistentialDeposit = ExistentialDeposit;
+  type ExistentialDeposit = BalancesExistentialDeposit;
   type AccountStore = System;
   type WeightInfo = ();
 }
@@ -163,10 +171,10 @@ impl pallet_sudo::Trait for Runtime {
 impl frame_system::Trait for Runtime {
   type AccountData = pallet_balances::AccountData<Balance>;
   type AccountId = AccountId;
-  type AvailableBlockRatio = AvailableBlockRatio;
+  type AvailableBlockRatio = SystemAvailableBlockRatio;
   type BaseCallFilter = ();
   type BlockExecutionWeight = BlockExecutionWeight;
-  type BlockHashCount = BlockHashCount;
+  type BlockHashCount = SystemBlockHashCount;
   type BlockNumber = BlockNumber;
   type Call = Call;
   type DbWeight = RocksDbWeight;
@@ -177,19 +185,19 @@ impl frame_system::Trait for Runtime {
   type Header = generic::Header<BlockNumber, BlakeTwo256>;
   type Index = Index;
   type Lookup = IdentityLookup<AccountId>;
-  type MaximumBlockLength = MaximumBlockLength;
-  type MaximumBlockWeight = MaximumBlockWeight;
+  type MaximumBlockLength = SystemMaximumBlockLength;
+  type MaximumBlockWeight = SystemMaximumBlockWeight;
   type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
   type OnKilledAccount = ();
   type OnNewAccount = ();
   type Origin = Origin;
   type PalletInfo = PalletInfo;
   type SystemWeightInfo = ();
-  type Version = Version;
+  type Version = SystemVersion;
 }
 
 impl pallet_timestamp::Trait for Runtime {
-  type MinimumPeriod = MinimumPeriod;
+  type MinimumPeriod = TimestampMinimumPeriod;
   type Moment = u64;
   type OnTimestampSet = Aura;
   type WeightInfo = ();
@@ -199,7 +207,7 @@ impl pallet_transaction_payment::Trait for Runtime {
   type Currency = Balances;
   type FeeMultiplierUpdate = ();
   type OnTransactionPayment = ();
-  type TransactionByteFee = TransactionByteFee;
+  type TransactionByteFee = TransactionPaymentTransactionByteFee;
   type WeightToFee = IdentityFee<Balance>;
 }
 
@@ -253,8 +261,11 @@ impl_runtime_apis! {
       let mut batches = Vec::<BenchmarkBatch>::new();
       let params = (&config, &whitelist);
 
+      add_benchmark!(params, batches, pallet_contracts, Contracts);
+      add_benchmark!(params, batches, pallet_grandpa, Grandpa);
       add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
       add_benchmark!(params, batches, pallet_balances, Balances);
+      add_benchmark!(params, batches, pallet_multisig, Multisig);
       add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 
       if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
@@ -402,16 +413,26 @@ impl pallet_contracts::Trait for Runtime {
   type MaxDepth = pallet_contracts::DefaultMaxDepth;
   type MaxValueSize = pallet_contracts::DefaultMaxValueSize;
   type Randomness = RandomnessCollectiveFlip;
-  type RentByteFee = RentByteFee;
-  type RentDepositOffset = RentDepositOffset;
+  type RentByteFee = ContractsRentByteFee;
+  type RentDepositOffset = ContractsRentDepositOffset;
   type RentPayment = ();
   type SignedClaimHandicap = pallet_contracts::DefaultSignedClaimHandicap;
   type StorageSizeOffset = pallet_contracts::DefaultStorageSizeOffset;
-  type SurchargeReward = SurchargeReward;
+  type SurchargeReward = ContractsSurchargeReward;
   type Time = Timestamp;
-  type TombstoneDeposit = TombstoneDeposit;
+  type TombstoneDeposit = ContractsTombstoneDeposit;
   type TrieIdGenerator = pallet_contracts::TrieIdFromParentCounter<Runtime>;
   type WeightPrice = pallet_transaction_payment::Module<Self>;
+}
+
+impl pallet_multisig::Trait for Runtime {
+  type Event = Event;
+  type Call = Call;
+  type Currency = Balances;
+  type DepositBase = MultisignDepositBase;
+  type DepositFactor = MultisignDepositFactor;
+  type MaxSignatories = MultisignMaxSignatories;
+  type WeightInfo = ();
 }
 
 #[cfg(feature = "std")]

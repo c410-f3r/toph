@@ -3434,6 +3434,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "908b373ca40975c48f79a95e8cd134c039ef1120abe4633465c5f690924c79c4"
 dependencies = [
  "bitflags",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-contracts-primitives",
@@ -3447,6 +3448,7 @@ dependencies = [
  "sp-sandbox",
  "sp-std",
  "wasmi-validation",
+ "wat",
 ]
 
 [[package]]
@@ -3510,6 +3512,23 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-multisig"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "753a016a076edf8f3d5e6483092034f9c62efd3fbf86bdefbe813cb91d065777"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-std",
 ]
 
@@ -7106,6 +7125,7 @@ dependencies = [
  "sc-rpc-api",
  "sc-service",
  "sc-transaction-pool",
+ "serde_json",
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",
@@ -7139,6 +7159,7 @@ dependencies = [
  "pallet-contracts-primitives",
  "pallet-contracts-rpc-runtime-api",
  "pallet-grandpa",
+ "pallet-multisig",
  "pallet-randomness-collective-flip",
  "pallet-sudo",
  "pallet-timestamp",

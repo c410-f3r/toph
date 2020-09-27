@@ -41,10 +41,45 @@ jobs:
           script: |
             sudo apt update
             sudo apt install -y docker.io
-            sudo docker stop toph-node
-            sudo docker rm toph-node
-            mkdir -p ~/toph-node
-            sudo docker run -d --name toph-node -p 30333:30333 -p 9933:9933 -p 9944:9944 --restart on-failure -v $HOME/toph-node:/toph-node c410f3r/toph-node --rpc-cors all --rpc-external --ws-external
+            sudo docker stop toph-node-0 && sudo docker stop toph-node-1
+            sudo docker rm toph-node-0 && sudo docker rm toph-node-1
+            mkdir -p $HOME/toph-node-0 $HOME/toph-node-1
+
+            sudo docker run \
+                -d \
+                --name toph-node-0 \
+                -p 30333:30333 \
+                -p 9945:9944 \
+                --restart on-failure \
+                -v $HOME/toph-node-0:/toph-node \
+                c410f3r/toph-node \
+                    --base-path /toph-node \
+                    --chain testnet_joana \
+                    --name toph-node-0 \
+                    --port 30333 \
+                    --rpc-cors all \
+                    --rpc-port 9933 \
+                    --unsafe-ws-external \
+                    --validator \
+                    --ws-port 9944
+
+            sudo docker run \
+                -d \
+                --name toph-node-1 \
+                -p 30334:30333 \
+                -p 9947:9944 \
+                --restart on-failure \
+                -v $HOME/toph-node-1:/toph-node \
+                c410f3r/toph-node \
+                    --base-path /toph-node \
+                    --chain testnet_joana \
+                    --name toph-node-1 \
+                    --port 30333 \
+                    --rpc-cors all \
+                    --rpc-port 9933 \
+                    --unsafe-ws-external \
+                    --validator \
+                    --ws-port 9944
           username: toph-node
 
             
