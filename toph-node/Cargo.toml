@@ -2,46 +2,46 @@
 name = 'toph-node'
 
 [build-dependencies]
-substrate-build-script-utils = { default-features = false, version = '2.0.0' }
+substrate-build-script-utils = { default-features = false, version = '2.0' }
 
 [dependencies]
-frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
-frame-benchmarking-cli = { default-features = false, optional = true, version = '2.0.0' }
-jsonrpc-core = { default-features = false, version = '15.0.0' }
-pallet-contracts = { default-features = false, version = '2.0.0' }
-pallet-transaction-payment-rpc = { default-features = false, version = '2.0.0' }
-sc-basic-authorship = { default-features = false, version = '0.8.0' }
-sc-cli = { default-features = false, features = ['wasmtime'], version = '0.8.0' }
-sc-client-api = { default-features = false, version = '2.0.0' }
-sc-consensus = { default-features = false, version = '0.8.0' }
-sc-consensus-aura = { default-features = false, version = '0.8.0' }
-sc-executor = { default-features = false, features = ['std', 'wasmtime'], version = '0.8.0' }
-sc-finality-grandpa = { default-features = false, version = '0.8.0' }
-sc-rpc = { default-features = false, version = '2.0.0' }
-sc-rpc-api = { default-features = false, version = '0.8.0' }
-sc-service = { default-features = false, features = ['db', 'wasmtime'], version = '0.8.0' }
-sc-transaction-pool = { default-features = false, version = '2.0.0' }
+frame-benchmarking = { default-features = false, optional = true, version = '2.0' }
+frame-benchmarking-cli = { default-features = false, optional = true, version = '2.0' }
+jsonrpc-core = { default-features = false, version = '15.0' }
+pallet-contracts = { default-features = false, version = '2.0' }
+pallet-transaction-payment-rpc = { default-features = false, version = '2.0' }
+sc-basic-authorship = { default-features = false, version = '0.8' }
+sc-cli = { default-features = false, features = ['wasmtime'], version = '0.8' }
+sc-client-api = { default-features = false, version = '2.0' }
+sc-consensus = { default-features = false, version = '0.8' }
+sc-consensus-aura = { default-features = false, version = '0.8' }
+sc-executor = { default-features = false, features = ['std', 'wasmtime'], version = '0.8' }
+sc-finality-grandpa = { default-features = false, version = '0.8' }
+sc-rpc = { default-features = false, version = '2.0' }
+sc-rpc-api = { default-features = false, version = '0.8' }
+sc-service = { default-features = false, features = ['db', 'wasmtime'], version = '0.8' }
+sc-transaction-pool = { default-features = false, version = '2.0' }
 serde_json = { default-features = false, features = ['std'], version = '1.0' }
-sp-api = { default-features = false, version = '2.0.0' }
-sp-block-builder = { default-features = false, version = '2.0.0' }
-sp-blockchain = { default-features = false, version = '2.0.0' }
-sp-consensus = { default-features = false, version = '0.8.0' }
-sp-consensus-aura = { default-features = false, version = '0.8.0' }
-sp-core = { default-features = false, version = '2.0.0' }
-sp-finality-grandpa = { default-features = false, version = '2.0.0' }
-sp-inherents = { default-features = false, version = '2.0.0' }
-sp-runtime = { default-features = false, version = '2.0.0' }
-sp-transaction-pool = { default-features = false, version = '2.0.0' }
-structopt = { default-features = false,  version = '0.3.8' }
-substrate-frame-rpc-system = { default-features = false, version = '2.0.0' }
-toph-runtime = { default-features = false, features = ['std'], path = '../toph-runtime', version = '0.1.0' }
+sp-api = { default-features = false, version = '2.0' }
+sp-block-builder = { default-features = false, version = '2.0' }
+sp-blockchain = { default-features = false, version = '2.0' }
+sp-consensus = { default-features = false, version = '0.8' }
+sp-consensus-aura = { default-features = false, version = '0.8' }
+sp-core = { default-features = false, version = '2.0' }
+sp-finality-grandpa = { default-features = false, version = '2.0' }
+sp-inherents = { default-features = false, version = '2.0' }
+sp-runtime = { default-features = false, version = '2.0' }
+sp-transaction-pool = { default-features = false, version = '2.0' }
+structopt = { default-features = false,  version = '0.3' }
+substrate-frame-rpc-system = { default-features = false, version = '2.0' }
+toph-runtime = { default-features = false, features = ['std'], path = '../toph-runtime', version = '0.1' }
 
 [features]
 default = []
 runtime-benchmarks = ['frame-benchmarking', 'frame-benchmarking-cli', 'toph-runtime/runtime-benchmarks']
 
 [package]
-authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
+authors = ['Caio Fernandes <c410.f3r@gmail.com>']
 description = 'Toph node'
 edition = '2018'
 license = 'Apache-2.0'
