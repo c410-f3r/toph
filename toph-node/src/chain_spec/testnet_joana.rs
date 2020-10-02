@@ -1,6 +1,5 @@
 use crate::chain_spec::{
-  account_id_from_ss58, get_account_id_from_seed, properties, public_key_from_ss58, ChainSpec,
-  GenesisConfigBuilder,
+  account_id_from_ss58, properties, public_key_from_ss58, ChainSpec, GenesisConfigBuilder,
 };
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -8,23 +7,18 @@ use sp_core::sr25519;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use toph_runtime::WASM_BINARY;
 
+const AURA_SS58: &str = "5Do78B3k99QvEjpeyf8WrkJCqr2EwJk66C1sz5v3oT1RyLeD";
+const GRANDPA_SS58: &str = "5FiDC12iX9tT9enK5kDBt4nKjpfQ7jJqqXG2GjjNogaoyNji";
+
 pub fn testnet_joana() -> Result<ChainSpec, String> {
   let wasm_binary = WASM_BINARY.ok_or_else(|| "WASM binary not available".to_string())?;
 
-  let endowed_accounts = vec![
-    account_id_from_ss58::<sr25519::Public>("5HZ1L1cNLmiapEZrB2zXMF6QwDE3hThQ1QeoKQMDkoRpiopD")?,
-    account_id_from_ss58::<sr25519::Public>("5DDVKn4iAAwCd4KcKEfpGBhtWo8SjLyFR64CGHd53azmMNct")?,
-  ];
-  let initial_authorities = vec![
-    (
-      public_key_from_ss58::<AuraId>("5HZ1L1cNLmiapEZrB2zXMF6QwDE3hThQ1QeoKQMDkoRpiopD")?,
-      public_key_from_ss58::<GrandpaId>("5CG4vDbTqTM7Ky76DfF1P4xkbeScDy1WA2Q8mLt93E9ik2y1")?,
-    ),
-    (
-      public_key_from_ss58::<AuraId>("5DDVKn4iAAwCd4KcKEfpGBhtWo8SjLyFR64CGHd53azmMNct")?,
-      public_key_from_ss58::<GrandpaId>("5C5HKC8SWhLKnQxnpEcvCPR7GUPzTQS4FWt36rptxFwHjuRB")?,
-    ),
-  ];
+  let endowed_accounts = vec![account_id_from_ss58::<sr25519::Public>(AURA_SS58)?];
+  let initial_authorities = vec![(
+    public_key_from_ss58::<AuraId>(AURA_SS58)?,
+    public_key_from_ss58::<GrandpaId>(GRANDPA_SS58)?,
+  )];
+  let sudo_key = account_id_from_ss58::<sr25519::Public>(GRANDPA_SS58)?;
 
   Ok(ChainSpec::from_genesis(
     "Joana Testnet",
@@ -34,7 +28,7 @@ pub fn testnet_joana() -> Result<ChainSpec, String> {
       GenesisConfigBuilder {
         endowed_accounts: &endowed_accounts,
         initial_authorities: &initial_authorities,
-        sudo_key: get_account_id_from_seed::<sr25519::Public>("Alice"),
+        sudo_key: sudo_key.clone(),
         wasm_binary,
       }
       .build()
