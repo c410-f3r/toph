@@ -32,9 +32,7 @@ jobs:
           push: true
           tags: c410f3r/toph-node:latest
 
-      - env:
-          SEED: ${{ secrets.SEED }}
-        name: Publish
+      - name: Publish
         uses: appleboy/ssh-action@master
         with:
           host: 35.192.47.173
@@ -51,8 +49,8 @@ jobs:
             AURA_PK="0x4c92dd81ab955d07b9c2e2068c76a0f91c44f4100593d8354df4b2d4ed4f7808"
             GRANDPA_PK="0xa14f866b8badbba40c8d36c8951e15bbaf6598d5e794d6f98711efd9f241e63b"
 
-            COMMON_PARAMS="$PURGE_PARAMS --port 30333 --rpc-port 9933 --ws-port 9944"
             PURGE_PARAMS="--base-path /toph-node --chain testnet_joana"
+            COMMON_PARAMS="$PURGE_PARAMS --port 30333 --rpc-port 9933 --ws-port 9944"
 
             inject_keys() {
               local container=$1
@@ -60,7 +58,7 @@ jobs:
               local grandpa_pk=$3
               local seed=$4
 
-              sleep 1
+              sleep 2
 
               DATA='{ "id":1, "jsonrpc":"2.0", "method":"author_insertKey", "params":["aura", "'"$seed"'", "'"$aura_pk"'"] }'
               CURL=$(echo "curl -H 'Content-Type: application/json' --data '$DATA' localhost:9933")
@@ -76,11 +74,13 @@ jobs:
               sudo docker rm $container
             }
 
+            sudo docker pull c410f3r/toph-node
+
             CONTAINER=$(sudo docker run -d -v $HOME/toph-node-1:/toph-node \
               c410f3r/toph-node $COMMON_PARAMS --name toph-node-1 --rpc-methods=Unsafe --validator
             )
 
-            inject_keys "$CONTAINER" "$AURA_PK" "$GRANDPA_PK" "$SEED"
+            inject_keys "$CONTAINER" "$AURA_PK" "$GRANDPA_PK" "${{ secrets.SEED }}"
 
             sudo docker run \
               -d \
@@ -90,7 +90,7 @@ jobs:
               -p 9944:9944 \
               --restart always \
               -v $HOME/toph-node-0:/toph-node \
-              c410f3r/toph-node $COMMON_PARAMS --name toph-node-0 --rpc-external --ws-external
+              c410f3r/toph-node $COMMON_PARAMS --name toph-node-0 --rpc-cors all --rpc-external --ws-external
 
             sudo docker run \
               -d \
