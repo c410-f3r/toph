@@ -43,10 +43,10 @@ jobs:
           script: |
             sudo apt update
             sudo apt install -y docker.io
-            sudo docker stop toph-node-0 && sudo docker stop toph-node-1 && sudo docker stop toph-node-2
-            sudo docker rm toph-node-0 && sudo docker rm toph-node-1 && sudo docker rm toph-node-2
-            rm -rf $HOME/toph-node-0 $HOME/toph-node-1 $HOME/toph-node-2
-            mkdir -p $HOME/toph-node-0 $HOME/toph-node-1 $HOME/toph-node-2
+            sudo docker stop toph-node-0 && sudo docker stop toph-node-1
+            sudo docker rm toph-node-0 && sudo docker rm toph-node-1
+            rm -rf $HOME/toph-node-0 $HOME/toph-node-1
+            mkdir -p $HOME/toph-node-0 $HOME/toph-node-1
 
             AURA_PK="0x4c92dd81ab955d07b9c2e2068c76a0f91c44f4100593d8354df4b2d4ed4f7808"
             GRANDPA_PK="0xa14f866b8badbba40c8d36c8951e15bbaf6598d5e794d6f98711efd9f241e63b"
@@ -59,6 +59,8 @@ jobs:
               local aura_pk=$2
               local grandpa_pk=$3
               local seed=$4
+
+              sleep 1
 
               DATA='{ "id":1, "jsonrpc":"2.0", "method":"author_insertKey", "params":["aura", "'"$seed"'", "'"$aura_pk"'"] }'
               CURL=$(echo "curl -H 'Content-Type: application/json' --data '$DATA' localhost:9933")
@@ -74,44 +76,8 @@ jobs:
               sudo docker rm $container
             }
 
-            inject_random_keys() {
-              local container=$1
-
-              AURA=$(sudo docker run --rm parity/subkey:2.0.0 generate --scheme sr25519)
-              AURA_SEED=$(echo "$AURA" | grep 'Secret phrase' | cut -d'`' -f2)
-              AURA_PUBLIC_KEY=$(echo "$AURA" | grep 'Public key' | cut -d':' -f2 | tr -d '[:space:]')
-
-              DATA='{ "id":1, "jsonrpc":"2.0", "method":"author_insertKey", "params":["aura", "'"$AURA_SEED"'", "'"$AURA_PUBLIC_KEY"'"] }'
-              CURL=$(echo "curl -H 'Content-Type: application/json' --data '$DATA' localhost:9933")
-
-              sudo docker exec $container bash -c "$CURL"
-
-              GRANDPA=$(sudo docker run --rm parity/subkey:2.0.0 inspect --scheme ed25519 "$AURA_SEED")
-              GRANDPA_PUBLIC_KEY=$(echo "$GRANDPA" | grep 'Public key' | cut -d':' -f2 | tr -d '[:space:]')
-
-              DATA='{ "id":1, "jsonrpc":"2.0", "method":"author_insertKey", "params":["gran", "'"$AURA_SEED"'", "'"$GRANDPA_PUBLIC_KEY"'"] }'
-              CURL=$(echo "curl -H 'Content-Type: application/json' --data '$DATA' localhost:9933")
-
-              sudo docker exec $container bash -c "$CURL"
-
-              sudo docker stop $container
-              sudo docker rm $container
-            }
-
-            CONTAINER=$(sudo docker run -d -v $HOME/toph-node-0:/toph-node \
-              c410f3r/toph-node $COMMON_PARAMS --name toph-node-0 --rpc-external --rpc-methods=Unsafe --ws-external
-            )
-
-            inject_random_keys "$CONTAINER"
-
             CONTAINER=$(sudo docker run -d -v $HOME/toph-node-1:/toph-node \
               c410f3r/toph-node $COMMON_PARAMS --name toph-node-1 --rpc-methods=Unsafe --validator
-            )
-
-            inject_random_keys "$CONTAINER"
-
-            CONTAINER=$(sudo docker run -d -v $HOME/toph-node-2:/toph-node \
-              c410f3r/toph-node $COMMON_PARAMS --name toph-node-2 --rpc-methods=Unsafe --validator
             )
 
             inject_keys "$CONTAINER" "$AURA_PK" "$GRANDPA_PK" "$SEED"
@@ -135,14 +101,4 @@ jobs:
               --restart always \
               -v $HOME/toph-node-1:/toph-node \
               c410f3r/toph-node $COMMON_PARAMS --name toph-node-1 --validator
-
-            sudo docker run \
-              -d \
-              --name toph-node-2 \
-              -p 30335:30333 \
-              -p 9935:9933 \
-              -p 9946:9944 \
-              --restart always \
-              -v $HOME/toph-node-2:/toph-node \
-              c410f3r/toph-node $COMMON_PARAMS --name toph-node-2 --validator
           username: toph-node
